@@ -17,7 +17,9 @@ import math
 import shapely.geometry as gm
 import numpy as np
 
-import config as CONFIG
+import yaml
+
+CONFIG_FILENAME = 'src/lightswarm_core/params/config.yaml'
 
 def vec_normalize(vec): # vec: np.array
     return vec / np.linalg.norm(vec)
@@ -130,7 +132,16 @@ class ShadowCalculator(object):
         self.penumbras_pub = rospy.Publisher('/penumbras', Penumbras)
         self.obstacles_pub = rospy.Publisher('/obstacles', Obstacles)
         # configuration
-        self.light_sources = CONFIG.projector_locations
+        #self.light_sources = CONFIG.projector_locations
+        config_filename = rospy.get_param('config_file', CONFIG_FILENAME)
+        self.read_in_config(config_filename)
+        
+    def read_in_config(self, filename):
+        f = open(filename)
+        config_map = yaml.safe_load(f)
+        f.close()
+        self.light_sources = config_map.get('projector_locations')
+        print self.light_sources[0][1]
 
     def objects_callback(self, objects):
         obstacles = []
