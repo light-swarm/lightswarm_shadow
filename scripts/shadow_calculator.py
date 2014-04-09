@@ -13,6 +13,8 @@ from lightswarm_core.msg import Shadow # [projector id, polygon]
 from lightswarm_core.msg import Penumbras # list of shadows
 from lightswarm_core.msg import Obstacles # list of polygons
 
+import lightswarm_core.scripts.config as CONFIG
+
 import math
 import shapely.geometry as gm
 import numpy as np
@@ -36,7 +38,7 @@ def get_shadow_point(vertex, light): # vertex: np.array, light_pos: np.array / b
 def get_tangent_points(cylinder, light3d): # cylinder: Cylinder, light3d: tuple
     k1 = cylinder.location.x - light3d[0]
     k2 = cylinder.location.y - light3d[1]
-    k3 = cylinder.radius 
+    k3 = cylinder.radius
 
     x1 = (-k1 * k3 - math.sqrt(k1*k1*k2*k2 + k2**4 - k2*k2*k3*k3)) / (k1*k1 + k2*k2)
     y1 = (-k3 + (k1*k1*k3)/(k1*k1+k2*k2) + k1*math.sqrt(-k2*k2*(-k1*k1-k2*k2+k3*k3))/(k1*k1 + k2*k2))/k2
@@ -44,9 +46,16 @@ def get_tangent_points(cylinder, light3d): # cylinder: Cylinder, light3d: tuple
     x2 = (-k1 * k3 + math.sqrt(k1*k1*k2*k2 + k2**4 - k2*k2*k3*k3)) / (k1*k1 + k2*k2)
     y2 = (-k3 + (k1*k1*k3)/(k1*k1+k2*k2) - k1*math.sqrt(-k2*k2*(-k1*k1-k2*k2+k3*k3))/(k1*k1 + k2*k2))/k2
     
-    # CAREFUL HERE FOR CORNER CASES!
-    theta1 = np.arctan2(y1, x1)
-    theta2 = np.arctan2(y2, x2)
+    # CAREFUL FOR CORNER CASES!
+    if k1 == 0 and k2 == 0:
+        theta1 = math.pi/2
+        theta2 = math.pi/2
+    else if k2 == 0:
+        theta1 = math.pi/2
+        theta2 = math.pi/2
+    else:
+        theta1 = np.arctan2(y1, x1)
+        theta2 = np.arctan2(y2, x2)
     
     tx1 = cylinder.location.x + cylinder.radius * np.cos(theta1)
     ty1 = cylinder.location.y + cylinder.radius * np.sin(theta1)
@@ -95,7 +104,7 @@ def get_longer_side_points(cylinder, light3d, tangent_points):
     anchor = center + (vec_normalize(light2center) * cylinder.radius)
     ortho_light2center = get_ortho_vec(light2center)
 
-    shadow_point = get_shadow_point((anchor[0], anchor[1], cylinder.height), light3d)
+    shadow_point = get_shadow_point((anchor[0], anchor[1], min(cylinder.height, light3d[2]-1)), light3d)
 
     res1 = get_intersection(shadow_point, ortho_light2center, light, light2tangent1)
     res2 = get_intersection(shadow_point, ortho_light2center, light, light2tangent2)
@@ -120,9 +129,8 @@ class ShadowCalculator(object):
         self.sub = rospy.Subscriber('/objects', Objects, self.objects_callback)
         self.penumbras_pub = rospy.Publisher('/penumbras', Penumbras)
         self.obstacles_pub = rospy.Publisher('/obstacles', Obstacles)
-        # source config file to get the locations of light sources: [(id0, (x0,y0,z0)), (id1, (x1,y1,z1)), ...]
-        # for now put in manually
-        self.light_sources = [('first', (0, 70, 500)), ('second', (50, 70, 400))]
+        # configuration
+        self.light_sources = CONFIG.projector_locations
 
     def objects_callback(self, objects):
         obstacles = []
