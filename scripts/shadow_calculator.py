@@ -141,7 +141,7 @@ class ShadowCalculator(object):
         config_map = yaml.safe_load(f)
         f.close()
         self.light_sources = config_map.get('projector_locations')
-        print self.light_sources[0][1]
+        #print self.light_sources[1][1]
 
     def objects_callback(self, objects):
         obstacles = []
