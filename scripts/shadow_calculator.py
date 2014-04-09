@@ -13,11 +13,11 @@ from lightswarm_core.msg import Shadow # [projector id, polygon]
 from lightswarm_core.msg import Penumbras # list of shadows
 from lightswarm_core.msg import Obstacles # list of polygons
 
-import lightswarm_core.scripts.config as CONFIG
-
 import math
 import shapely.geometry as gm
 import numpy as np
+
+import config as CONFIG
 
 def vec_normalize(vec): # vec: np.array
     return vec / np.linalg.norm(vec)
@@ -50,7 +50,7 @@ def get_tangent_points(cylinder, light3d): # cylinder: Cylinder, light3d: tuple
     if k1 == 0 and k2 == 0:
         theta1 = math.pi/2
         theta2 = math.pi/2
-    else if k2 == 0:
+    elif k2 == 0:
         theta1 = math.pi/2
         theta2 = math.pi/2
     else:
