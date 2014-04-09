@@ -1,0 +1,6 @@
+<launch>
+    <param name='config_file' value="$(find lightswarm_core)/params/config.yaml" />
+    <node name="stub_object_detector" pkg="lightswarm_core" type="stub_object_detector.py" />
+    <node name="shadow_computation" pkg="lightswarm_shadow" type="shadow_calculator.py" />
+</launch>
+
