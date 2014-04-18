@@ -160,13 +160,14 @@ class ShadowCalculator(object):
                 
                 polygon_objects.append(rep2)
                 penumbras.append(Shadow(projector_id=proj_id, polygon=Polygon(points=rep3)))
-        
-        intersections = intersect_all(polygon_objects) # returns either polygon or multipolygon
-        if isinstance(intersections, gm.polygon.Polygon):
-            obstacles.append(Polygon(points=convert_tuples2points(list(intersections.exterior.coords))))
-        else:
-            for p in list(intersections):
-                obstacles.append(Polygon(points=convert_tuples2points(list(p.exterior.coords))))
+
+        if len(polygon_objects) > 0:
+            intersections = intersect_all(polygon_objects) # returns either polygon or multipolygon
+            if isinstance(intersections, gm.polygon.Polygon):
+                obstacles.append(Polygon(points=convert_tuples2points(list(intersections.exterior.coords))))
+            else:
+                for p in list(intersections):
+                    obstacles.append(Polygon(points=convert_tuples2points(list(p.exterior.coords))))
 
         self.obstacles_pub.publish(Obstacles(polygons=obstacles))
         self.penumbras_pub.publish(Penumbras(projector_shadows=penumbras))
