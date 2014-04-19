@@ -42,20 +42,16 @@ def get_tangent_points(cylinder, light3d): # cylinder: Cylinder, light3d: tuple
     k2 = cylinder.location.y - light3d[1]
     k3 = cylinder.radius
 
-    x1 = (-k1 * k3 - math.sqrt(k1*k1*k2*k2 + k2**4 - k2*k2*k3*k3)) / (k1*k1 + k2*k2)
-    y1 = (-k3 + (k1*k1*k3)/(k1*k1+k2*k2) + k1*math.sqrt(-k2*k2*(-k1*k1-k2*k2+k3*k3))/(k1*k1 + k2*k2))/k2
-    
-    x2 = (-k1 * k3 + math.sqrt(k1*k1*k2*k2 + k2**4 - k2*k2*k3*k3)) / (k1*k1 + k2*k2)
-    y2 = (-k3 + (k1*k1*k3)/(k1*k1+k2*k2) - k1*math.sqrt(-k2*k2*(-k1*k1-k2*k2+k3*k3))/(k1*k1 + k2*k2))/k2
-    
-    # CAREFUL FOR CORNER CASES!
-    if k1 == 0 and k2 == 0:
+    if k2 == 0:
         theta1 = math.pi/2
-        theta2 = math.pi/2
-    elif k2 == 0:
-        theta1 = math.pi/2
-        theta2 = math.pi/2
+        theta2 = -math.pi/2
     else:
+        x1 = (-k1 * k3 - math.sqrt(k1*k1*k2*k2 + k2**4 - k2*k2*k3*k3)) / (k1*k1 + k2*k2)
+        y1 = (-k3 + (k1*k1*k3)/(k1*k1+k2*k2) + k1*math.sqrt(-k2*k2*(-k1*k1-k2*k2+k3*k3))/(k1*k1 + k2*k2))/k2
+        
+        x2 = (-k1 * k3 + math.sqrt(k1*k1*k2*k2 + k2**4 - k2*k2*k3*k3)) / (k1*k1 + k2*k2)
+        y2 = (-k3 + (k1*k1*k3)/(k1*k1+k2*k2) - k1*math.sqrt(-k2*k2*(-k1*k1-k2*k2+k3*k3))/(k1*k1 + k2*k2))/k2
+
         theta1 = np.arctan2(y1, x1)
         theta2 = np.arctan2(y2, x2)
     
@@ -125,6 +121,12 @@ def intersect_all(polygons):
         res = res.intersection(p)
     return res
 
+def union_all(polygons):
+    res = polygons[0]
+    for p in polygons:
+        res = res.union(p)
+    return res
+
 class ShadowCalculator(object):
     def __init__(self):
         rospy.init_node('shadow_calculator')
@@ -146,13 +148,13 @@ class ShadowCalculator(object):
     def objects_callback(self, objects):
         obstacles = []
         penumbras = []
-        polygon_objects = []
+        polygon_objects_per_light_source = []
 
-        for cylinder in objects.cylinders:
-            for light_source in self.light_sources:
-                proj_id = light_source[0]
-                light3d = light_source[1]
-
+        for light_source in self.light_sources:
+            proj_id = light_source[0]
+            light3d = light_source[1]
+            polygon_objects = []
+            for cylinder in objects.cylinders:
                 rep1 = self.compute_shadow(cylinder, light3d) # just list of tuples (first = last)
 
                 rep2 = gm.Polygon(rep1)
@@ -160,8 +162,12 @@ class ShadowCalculator(object):
                 
                 polygon_objects.append(rep2)
                 penumbras.append(Shadow(projector_id=proj_id, polygon=Polygon(points=rep3)))
+            polygon_objects_per_light_source.append(polygon_objects)
 
-        if len(polygon_objects) > 0:
+        if len(objects.cylinders) > 0 and len(self.light_sources) > 0:
+            polygon_objects = []
+            for i in range(0, len(polygon_objects_per_light_source)):
+                polygon_objects.append(union_all(polygon_objects_per_light_source[i]))
             intersections = intersect_all(polygon_objects) # returns either polygon or multipolygon
             if isinstance(intersections, gm.polygon.Polygon):
                 obstacles.append(Polygon(points=convert_tuples2points(list(intersections.exterior.coords))))
@@ -173,6 +179,20 @@ class ShadowCalculator(object):
         self.penumbras_pub.publish(Penumbras(projector_shadows=penumbras))
 
     def compute_shadow(self, cylinder, light3d):
+        # check if inside; quite ad-hoc...
+        cx = cylinder.location.x
+        cy = cylinder.location.y
+        ch = cylinder.height
+        r = cylinder.radius
+        v1 = np.array([cx, cy], float)
+        v2 = np.array([light3d[0], light3d[1]], float)
+        if get_dist(v1, v2) <= cylinder.radius:
+            sp1 = get_shadow_point((cx+r, cy, ch), light3d)
+            sp2 = get_shadow_point((cx, cy-r, ch), light3d)
+            sp3 = get_shadow_point((cx-r, cy, ch), light3d)
+            sp4 = get_shadow_point((cx, cy+r, ch), light3d)
+            return [sp1, sp2, sp3, sp4, sp1]
+
         tangent_points = get_tangent_points(cylinder, light3d)
 
         top = get_longer_side_points(cylinder, light3d, tangent_points)
