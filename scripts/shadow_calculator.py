@@ -187,10 +187,10 @@ class ShadowCalculator(object):
         v1 = np.array([cx, cy], float)
         v2 = np.array([light3d[0], light3d[1]], float)
         if get_dist(v1, v2) <= cylinder.radius:
-            sp1 = get_shadow_point((cx+r, cy, ch), light3d)
-            sp2 = get_shadow_point((cx, cy-r, ch), light3d)
-            sp3 = get_shadow_point((cx-r, cy, ch), light3d)
-            sp4 = get_shadow_point((cx, cy+r, ch), light3d)
+            sp1 = get_shadow_point((cx-r, cy+r, ch), light3d)
+            sp2 = get_shadow_point((cx+r, cy+r, ch), light3d)
+            sp3 = get_shadow_point((cx+r, cy-r, ch), light3d)
+            sp4 = get_shadow_point((cx-r, cy-r, ch), light3d)
             return [sp1, sp2, sp3, sp4, sp1]
 
         tangent_points = get_tangent_points(cylinder, light3d)
