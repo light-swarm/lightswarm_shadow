@@ -137,6 +137,7 @@ class ShadowCalculator(object):
         #self.light_sources = CONFIG.projector_locations
         config_filename = rospy.get_param('config_file', CONFIG_FILENAME)
         self.read_in_config(config_filename)
+        self.create_proj_shadows()
         
     def read_in_config(self, filename):
         f = open(filename)
@@ -144,13 +145,26 @@ class ShadowCalculator(object):
         f.close()
         self.light_sources = config_map.get('projector_locations')
         #print self.light_sources[1][1]
+        self.proj_coord = config_map.get('projector_coordinates')
+        self.sim_world_perim = config_map.get('sim_world_perimeter_projectable')
+        
+        
+    def create_proj_shadows(self):
+        world_poly = gm.Polygon(self.sim_world_perim)
+        
+        self.proj_display_shadow = []
+        for coords in self.proj_coord:
+            proj_poly = gm.Polygon(np.fliplr(coords))
+            proj_shadow = world_poly.difference(proj_poly)
+            self.proj_display_shadow.append(proj_shadow)
+        
 
     def objects_callback(self, objects):
         obstacles = []
         penumbras = []
         polygon_objects_per_light_source = []
 
-        for light_source in self.light_sources:
+        for i, light_source in enumerate(self.light_sources):
             proj_id = light_source[0]
             light3d = light_source[1]
             polygon_objects = []
@@ -168,7 +182,9 @@ class ShadowCalculator(object):
             polygon_objects = []
             for i in range(0, len(polygon_objects_per_light_source)):
                 polygon_objects.append(union_all(polygon_objects_per_light_source[i]))
+                
             intersections = intersect_all(polygon_objects) # returns either polygon or multipolygon
+            
             if isinstance(intersections, gm.polygon.Polygon):
                 obstacles.append(Polygon(points=convert_tuples2points(list(intersections.exterior.coords))))
             else:
